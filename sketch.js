@@ -15,6 +15,12 @@ var currentWordIndex = 0; // Index of the current word moving towards the center
 var userInput = ""; // Variable to track user input
 var currentWord = words[currentWordIndex]; // Current word being typed
 var backgroundOffsetX = 0; // Initial offset for the background
+var wordCompleted = false; // Flag to indicate if the current word is completed
+var score = 0; // Variable to track the user's score
+var blueBoatAlpha = 255; // Alpha value for the blue boat
+var fadeSpeed = 5; // Speed at which the blue boat fades
+var waitingForNextWord = false; // Flag to indicate if waiting for the next word
+var blinkCount = 0; // Track the number of blinks
 
 function preload() {
   greenBoatSpriteSheet = loadAnimation(
@@ -23,7 +29,7 @@ function preload() {
     "assets/boats/boat1/Boat1_water_frame3.png",
     "assets/boats/boat1/Boat1_water_frame4.png"
   );
-  
+
   greenCannonSpriteSheet = loadAnimation(
     "assets/cannons/cannon1/Cannon1_color1_1.png",
     "assets/cannons/cannon1/Cannon1_color1_2.png",
@@ -70,7 +76,7 @@ function preload() {
 function setup() {
   var canvasWidth = 800; 
   var canvasHeight = (3 / 4) * canvasWidth; // Calculate height for 4:3 aspect ratio
-  createCanvas(canvasWidth, canvasHeight); // Create the canvas
+  createCanvas (canvasWidth, canvasHeight); // Create the canvas
   angleMode(DEGREES); // Use degrees for rotation
 
   // Initialize word positions randomly around the edges of the canvas
@@ -104,11 +110,14 @@ function draw() {
   // Draw the green boat
   drawGreenBoat();
 
-  // Draw the blue boat moving with the word
+  // Draw the blue boat regardless of the word completion status
   drawBlueBoat();
 
   // Animate words towards the center
   drawWordsTowardsCenter();
+
+  // Display the score
+  displayScore();
 
   handleInput();
 
@@ -119,13 +128,21 @@ function draw() {
   }
 }
 
+function displayScore() {
+  fill(255); // Set text color to white
+  textSize(24); // Set text size
+  textAlign(LEFT, TOP); // Align text to the top left
+  textFont('monospace');
+  text("Score: " + score, 10, 10); // Display the score in the top left corner
+}
+
 function drawHeart() {
-   // Draw the heart in the upper left corner using the heart sprite sheet
-   push(); // Save the current drawing state
-   translate(50, 50); // Position the heart
-   scale(1.5); // Increase the size of the heart (1.5x)
-   animation(heartSpriteSheet, 0, 0); // Draw the heart at the origin (0,0) after scaling
-   pop(); // Restore the previous state
+  // Draw the heart in the upper left corner using the heart sprite sheet
+  push(); // Save the current drawing state
+  translate(50, 50); // Position the heart
+  scale(1.5); // Increase the size of the heart (1.5x)
+  animation(heartSpriteSheet, 0, 0); // Draw the heart at the origin (0,0) after scaling
+  pop(); // Restore the previous state
 }
 
 function drawBackground() {
@@ -146,51 +163,108 @@ function drawWordsTowardsCenter() {
   textFont('monospace'); // Use a monospace font
   textSize(fontSize); // Set the font size
 
-  // Draw each letter of the current word
-  for (var j = 0; j < currentWord.length; j++) {
-    fill(0, 0, 0, 100); // Semi-transparent black background for the letter
+  // Draw each letter of the current word only if the word is not completed
+  if (!wordCompleted) {
+    for (var j = 0; j < currentWord.length; j++) {
+      fill(0, 0, 0, 100); // Semi-transparent black background for the letter
 
-    // Draw the background rectangle behind the text
-    let rectX = wordPositions[i].x - width / 2 + j * fontSize / 2 - fontSize / 4;
-    let rectY = wordPositions[i].y - height / 2 - fontSize / 2;
-    let rectWidth = fontSize * 0.5;
-    let rectHeight = fontSize;
+      // Draw the background rectangle behind the text
+      let rectX = wordPositions[i].x - width / 2 + j * fontSize / 2 - fontSize / 4;
+      let rectY = wordPositions[i].y - height / 2 - fontSize / 2;
+      let rectWidth = fontSize * 0.5;
+      let rectHeight = fontSize;
 
-    // Center the background rectangle
-    rect(rectX, rectY, rectWidth, rectHeight);
+      // Center the background rectangle
+      rect(rectX, rectY, rectWidth, rectHeight);
 
-    // Change text color based on correctness
-    if (userInput[j] === currentWord[j]) {
-      fill(0, 255, 0); // Green for correct letters
-    } else {
-      fill(255); // White for incorrect letters
+      // Change text color based on correctness
+      if (userInput[j] === currentWord[j]) {
+        fill(0, 255, 0); // Green for correct letters
+      } else {
+        fill(255); // White for incorrect letters
+      }
+
+      // Draw the letter
+      text(currentWord[j], wordPositions[i].x - width / 2 + j * fontSize / 2, wordPositions[i].y - height / 2); 
     }
 
-    // Draw the letter
-    text(currentWord[j], wordPositions[i].x - width / 2 + j * fontSize / 2, wordPositions[i].y - height / 2); 
-  }
+    // Move the word towards the center
+    var centerX = width / 2;
+    var centerY = height / 2;
+    var dirX = centerX - wordPositions[i].x;
+    var dirY = centerY - wordPositions[i].y;
+    var distance = dist(wordPositions[i].x, wordPositions[i].y, centerX, centerY);
 
-  // Move the word towards the center
-  var centerX = width / 2;
-  var centerY = height / 2;
-  var dirX = centerX - wordPositions[i].x;
-  var dirY = centerY - wordPositions[i].y;
-  var distance = dist(wordPositions[i].x, wordPositions[i].y, centerX, centerY);
-
-  // Normalize the direction and move the word towards the center
-  if (distance > 1) { // Only move if the word is not already at the center
-    wordPositions[i].x += (dirX / distance) * animationSpeed;
-    wordPositions[i].y += (dirY / distance) * animationSpeed;
+    // Normalize the direction and move the word towards the center
+    if (distance > 1) { // Only move if the word is not already at the center
+      wordPositions[i].x += (dirX / distance) * animationSpeed;
+      wordPositions[i].y += (dirY / distance) * animationSpeed;
+    }
   } else {
-    // Once the word reaches the center, move to the next word
-    currentWordIndex = (currentWordIndex + 1) % words.length;
-    currentWord = words[currentWordIndex]; // Update the current word
-    userInput = ""; // Reset user input for the new word
+    // If the word is completed, start fading the blue boat
+    if (blueBoatAlpha > 0) {
+      blueBoatAlpha -= fadeSpeed; // Decrease the alpha value
+    } else {
+      // Reset for the next word
+      currentWordIndex = (currentWordIndex + 1) % words.length;
+      currentWord = words[currentWordIndex]; // Update the current word
+      userInput = ""; // Reset user input for the new word
+      wordCompleted = false; // Reset the completion flag for the next word
+      blueBoatAlpha = 255; // Reset the blue boat alpha for the next word
+    }
   }
 
   pop(); // Restore the previous state
 }
+function drawGreenBoat() {
+  // Calculate the angle to the current word
+  var targetWordPosition = wordPositions[currentWordIndex];
+  var angleToWord = atan2(targetWordPosition.y - height / 2, targetWordPosition.x - width / 2);
 
+  // Check if the blue boat is near the center
+  var blueBoatDistance = dist(wordPositions[currentWordIndex].x, wordPositions[currentWordIndex].y, width / 2, height / 2);
+  var blink = blueBoatDistance < 200; // the distance threshold 
+
+  // Move and rotate the green boat, cannon, and fire together
+  push();
+  translate(width / 2, height / 2); // Move to the center position
+  rotate(angleToWord - 85); // Rotate the group to face the current word
+
+  if (blink) {
+    // Blink the green boat by rapidly changing its alpha value
+    var alpha = sin(frameCount * 15) * 255; // adjust the blink speed as needed
+    tint(255, alpha);
+
+    // Increment the blink count every frame the green boat is blinking
+    blinkCount++;
+    
+    // Reset the blink count if it exceeds the threshold
+    if (blinkCount >= 10) {
+      // Start fading the blue boat
+      if (blueBoatAlpha > 0) {
+        blueBoatAlpha -= fadeSpeed; // Decrease the alpha value of the blue boat
+      } else {
+        // Reset for the next word
+        currentWordIndex = (currentWordIndex + 1) % words.length;
+        currentWord = words[currentWordIndex]; // Update the current word
+        userInput = ""; // Reset user input for the new word
+        wordCompleted = false; // Reset the completion flag for the next word
+        blueBoatAlpha = 255; // Reset the blue boat alpha for the next word
+      }
+    }
+  } else {
+    // Reset blink count if the green boat is not blinking
+    blinkCount = 0;
+  }
+
+  animation(greenBoatSpriteSheet, 0, 0); // Draw the green boat
+
+  animation(greenCannonSpriteSheet, 2, 30); // Draw the green cannon in relation to the boat
+
+  animation(greenFireSpriteSheet, -2, 100); // Draw the fire in relation to the cannon
+
+  pop(); // Restore the previous state for the group
+}
 
 function drawBlueBoat() {
   var i = currentWordIndex;
@@ -204,6 +278,8 @@ function drawBlueBoat() {
   translate(targetWordPosition.x, targetWordPosition.y); // Move to the word's position
   rotate(angleToWord + 95); // Rotate to align with the angle to the target word
 
+  // Set the fill color with the current alpha value
+  tint(255, blueBoatAlpha); // Apply the alpha value to the blue boat
   animation(blueBoatSpriteSheet, 22, 22); // Draw the blue boat
 
   animation(blueCannonSpriteSheet, 22, 42); // Draw the blue cannon in relation to the boat
@@ -213,24 +289,6 @@ function drawBlueBoat() {
   pop();
 }
 
-function drawGreenBoat() {
-  // Calculate the angle to the current word
-  var targetWordPosition = wordPositions[currentWordIndex];
-  var angleToWord = atan2(targetWordPosition.y - height / 2, targetWordPosition.x - width / 2);
-
-  // Move and rotate the green boat, cannon, and fire together
-  push();
-  translate(width / 2, height / 2); // Move to the center position
-  rotate(angleToWord - 85); // Rotate the group to face the current word
-  
-  animation(greenBoatSpriteSheet, 0, 0); // Draw the green boat
-  
-  animation(greenCannonSpriteSheet, 2, 30); // Draw the green cannon in relation to the boat
-  
-  animation(greenFireSpriteSheet, -2, 100);  // Draw the fire in relation to the cannon
-
-  pop(); // Restore the previous state for the group
-}
 
 function handleInput() {
   if (keyIsPressed) {
@@ -241,6 +299,15 @@ function handleInput() {
     if (typedChar.match(/[a-zA-Z]/) && userInput.length < currentWord.length) {
       if (typedChar === currentWord[userInput.length]) {
         userInput += typedChar; // Append the correct character to user input
+        
+        // Check if the user has completed the word
+        if (userInput.length === currentWord.length) {
+          if (userInput === currentWord) {
+            score++; // Increment the score only if the word is completed correctly
+            wordCompleted = true; // Set the wordCompleted flag to true
+            blueBoatAlpha -= fadeSpeed; // Start fading the blue boat immediately
+          }
+        }
       }
     }
   }
