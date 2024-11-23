@@ -1,0 +1,12 @@
+html, body {
+  display: flex;
+  justify-content: center; /* Center horizontally */
+  align-items: center; /* Center vertically */
+  height: 100vh; /* Full viewport height */
+  margin: 0; /* Remove default margin */
+}
+
+canvas {
+  display: block; /* Ensure canvas is treated as a block element */
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.8); /* Shadow effect */
+}
